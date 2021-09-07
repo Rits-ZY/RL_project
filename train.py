@@ -22,7 +22,7 @@ MODEL_TYPE = "SAC"
 DEFAULT_MAX_EPISODE = 4
 DEFAULT_MODEL_NAME = "my_model"
 MODEL_NAME = DEFAULT_MODEL_NAME
-TRAIN_ROUND = 1
+TRAIN_ROUND = 2
 
 
 def load_model(
@@ -95,7 +95,7 @@ def save_fig(monitor_path: str, fig_path: str) -> None:
     plt.ylabel("Episode Rewards")
     plt.tight_layout()
     plt.savefig(fig_path)
-
+    print("Save fig: ", fig_path)
 
 def main(round: int) -> None:
     global MODEL_NAME, MODEL_TYPE, DEFAULT_MAX_EPISODE
@@ -142,9 +142,11 @@ def main(round: int) -> None:
     save_path = MODEL_PATH + \
         "\\{}\\{}_{}.zip".format(MODEL_TYPE, round, model_name)
     model.save(save_path)
+    print("Save model: ", save_path)
+
     fig_path = FIG_PATH + \
         "\\{}\\train\\{}_{}.jpg".format(MODEL_TYPE, round, model_name)
-    save_fig(log_path, fig_path)
+    save_fig(os.path.dirname(log_path), fig_path)
 
 
 if __name__ == '__main__':
