@@ -12,7 +12,8 @@ import math
 
 INITIAL_ACCOUNT_BALANCE = 3000
 MAX_ACCOUNT_BALANCE = 10000
-MAX_Shape = 10
+INITIAL_BASE = 0.001
+MAX_Shape = 10000
 MIN_Shape = -3
 MAX_Coin = 10
 fea_num = 21
@@ -32,9 +33,13 @@ class StockTradingEnv(gym.Env):
             [-0.2, 0.1, 1]), high=np.array([0.2, 0.6, 10]), dtype=np.float16)
         self.observation_space = spaces.Box(
             low=0, high=1, shape=(fea_num, 1), dtype=np.float16)
-
+        self.fill_count = 0
+        self.fill_buy_count = 0
+        self.fill_sell_count = 0
+        self.fill_buy_v = 0.0
+        self.fill_sell_v = 0.0
         self.quote = INITIAL_ACCOUNT_BALANCE
-        self.base = 0
+        self.base = INITIAL_BASE
         self.times = 0
         self.sharp = 0
         self.profit = []
@@ -172,6 +177,7 @@ class StockTradingEnv(gym.Env):
         volume, dw, cdSec = action  # volume 量  dw ？ cdsec 持仓时间
         self.act = action
         cdSec = float(cdSec)
+        #print("id:{} action:{}".format(self.curIdx,action),end=" ")
         dt = self.btcOrderBook.iloc[self.curIdx, :].name
         bp = self.btcOrderBook.iloc[self.curIdx, :10]
         bv = self.btcOrderBook.iloc[self.curIdx, 10:20]
@@ -202,6 +208,9 @@ class StockTradingEnv(gym.Env):
                 self.base = self.base + volume
                 self.curIdx = len(self.btcOrderBook[self.btcOrderBook.index[0]:lowp[lowp <= bidOrderPrice].index[
                     0]])   # 这里是到最低价的index + 1
+                self.fill_count += 1
+                self.fill_buy_count += 1
+                self.fill_buy_v += volume
             else:
                 self.curIdx = self.curIdx + math.ceil(cdSec)
         elif volume < 0 and self.base > -volume:  # 卖
@@ -221,16 +230,25 @@ class StockTradingEnv(gym.Env):
                 self.base = self.base + volume
                 self.curIdx = len(
                     self.btcOrderBook[self.btcOrderBook.index[0]:highp[highp >= askOrderPrice].index[0]])
+                self.fill_count += 1
+                self.fill_sell_count += 1
+                self.fill_sell_v += -volume
             else:
                 self.curIdx = self.curIdx + math.ceil(cdSec)
         elif volume == 0:
             self.curIdx = self.curIdx + math.ceil(cdSec)
         if this_index == self.curIdx:
             self.curIdx += 1
-        profit = self.quote + self.base * \
+        profit = self.quote + (self.base - INITIAL_BASE) * \
             self.btcOrderBook['wp'].iloc[self.curIdx] - INITIAL_ACCOUNT_BALANCE
+        # print("next_idx:{} wp:{} base:{} quote:{} profit:{}".format(
+        # self.curIdx, self.btcOrderBook['wp'].iloc[self.curIdx], self.base,
+        # self.quote, profit))
         self.profit.append(profit)
-        if len(self.profit) > 10 and np.std(np.array(self.profit)) != 0:
+        if len(
+            self.profit) > 10 and np.std(
+            np.array(
+                self.profit)) != 0 and self.fill_count > 0:
             reward = np.mean(np.array(self.profit)) / \
                 np.std(np.array(self.profit))
         else:
@@ -254,24 +272,39 @@ class StockTradingEnv(gym.Env):
         # df = pd.read_csv("./data/{}".format(_file))
         # self.reset_df(df)
         self.quote = INITIAL_ACCOUNT_BALANCE
-        self.base = 0
+        self.base = 0.001
         # self.curIdx = random.randint(0, 10)
         self.curIdx = 0
         obs = self.getobs(self.curIdx)
-        if len(self.profit) > 0:
+        if len(self.profit) > 1:
             self.times = self.times + 1
             print('----第',
                   self.times,
                   '次开始，上次的tick级夏普是,',
-                  self.sharp,
+                  round(self.sharp, 4),
                   '成交量:',
-                  len(self.profit),
+                  self.fill_count,
+                  '买入:',
+                  self.fill_buy_count,
+                  '买入总量:',
+                  round(self.fill_buy_v, 4),
+                  '卖出:',
+                  self.fill_sell_count,
+                  '卖出总量:',
+                  round(self.fill_sell_v, 4),
                   'profits sum',
-                  np.sum(self.profit),
+                  round(np.sum(self.profit), 4),
                   'total profit:',
-                  self.profit[-1],
+                  round(self.profit[-1], 4),
                   '----')
         self.sharp = 0
+        self.fill_count = 0
+        self.fill_buy_count = 0
+        self.fill_sell_count = 0
+        self.fill_buy_v = 0.0
+        self.fill_sell_v = 0.0
+        # print(self.profit)
+        #print(np.mean(np.array(self.profit)) / np.std(np.array(self.profit)))
         self.profit = []
         return obs
 

@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 from stable_baselines3 import PPO
 from stable_baselines3 import SAC
-from stable_baselines3 import DDPG
+from stable_baselines3 import DDPG, DQN, TD3, HER, A2C
 from stable_baselines3.common.base_class import BaseAlgorithm
 from env.StockTradingEnv_2 import StockTradingEnv
 from stable_baselines3.common.vec_env import DummyVecEnv, VecMonitor
@@ -20,9 +20,10 @@ MODEL_PATH = "G:\\RL\\RL_project\\model\\"
 FIG_PATH = "G:\\RL\\RL_project\\fig\\"
 MODEL_TYPE = "SAC"
 DEFAULT_MAX_EPISODE = 4
-DEFAULT_MODEL_NAME = "my_model"
+DEFAULT_MODEL_NAME = "my_model2"
 MODEL_NAME = DEFAULT_MODEL_NAME
-TRAIN_ROUND = 5
+TRAIN_ROUND = 10
+ROUND_START = 1
 
 
 def load_model(
@@ -80,7 +81,7 @@ def save_fig(monitor_path: str, fig_path: str) -> None:
     xy_list = [ts2xy(data_frame, "episodes") for data_frame in data_frames]
     max_x = max(xy[0][-1] for xy in xy_list)
     min_x = 0
-    episodes_window = 100
+    episodes_window = 5
     plt.figure("Train Rewards", figsize=(8, 2))
     for (_, (x, y)) in enumerate(xy_list):
         plt.scatter(x, y, s=2)
@@ -95,9 +96,10 @@ def save_fig(monitor_path: str, fig_path: str) -> None:
     plt.ylabel("Episode Rewards")
     plt.tight_layout()
     plt.savefig(fig_path)
+    plt.clf()
     print("Save fig: ", fig_path)
 
-def main(round: int) -> None:
+def main(cur_round: int) -> None:
     global MODEL_NAME, MODEL_TYPE, DEFAULT_MAX_EPISODE
     new_model_flag = False
 
@@ -131,7 +133,7 @@ def main(round: int) -> None:
     else:
         model_name = MODEL_NAME[:-4]
         log_path = LOG_PATH + \
-            "\\{}\\{}\\{}_{}".format(MODEL_TYPE, model_name, round, Monitor.EXT)
+            "\\{}\\{}\\{}_{}".format(MODEL_TYPE, model_name, cur_round, Monitor.EXT)
         if not os.path.exists(log_path):
             print("Create new file:", log_path)
         train_env = VecMonitor(train_env, log_path)
@@ -140,15 +142,15 @@ def main(round: int) -> None:
     my_callback = StopTrainingOnMaxEpisodes(DEFAULT_MAX_EPISODE, verbose=0)
     model.learn(total_timesteps=20000000, callback=my_callback)
     save_path = MODEL_PATH + \
-        "\\{}\\{}_{}.zip".format(MODEL_TYPE, round, model_name)
+        "\\{}\\{}.zip".format(MODEL_TYPE, model_name)
     model.save(save_path)
     print("Save model: ", save_path)
 
     fig_path = FIG_PATH + \
-        "\\{}\\train\\{}_{}.jpg".format(MODEL_TYPE, round, model_name)
+        "\\{}\\train\\{}_{}.jpg".format(MODEL_TYPE, cur_round, model_name)
     save_fig(os.path.dirname(log_path), fig_path)
 
 
 if __name__ == '__main__':
-    for i in range(TRAIN_ROUND):
+    for i in range(ROUND_START, ROUND_START+TRAIN_ROUND):
         main(i)

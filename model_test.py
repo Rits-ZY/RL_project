@@ -28,9 +28,9 @@ class TestEnv:
         self.MAX_Coin = 10
         self.fea_num = 21
         self.my_quote = self.INITIAL_ACCOUNT_BALANCE
-        self.my_base = 0
+        self.my_base = 0.001
         self.init_quote = self.INITIAL_ACCOUNT_BALANCE
-        self.init_base = 0
+        self.init_base = 0.001
         self.initNetWorth = 0
         self.profits = []
         self.bid1 = 0
@@ -80,8 +80,10 @@ class TestEnv:
     def reset_env(self):
         self.h.clear()
         self.bid_ok = False
-        self.init_quote = self.my_quote
-        self.init_base = self.my_base
+        self.my_base = 0.001
+        self.my_quote = self.INITIAL_ACCOUNT_BALANCE
+        self.init_quote = self.INITIAL_ACCOUNT_BALANCE
+        self.init_base = 0.001
         self.cur_index = 0
         self.profits = []
         self.my_action = []
@@ -152,10 +154,8 @@ class TestEnv:
                 self.fill_order()
 
     def fill_order(self):
-        #print("fill order id:", self.cur_order_id)
-
         self.fill_count += 1
-        print("第{}次成交:".format(self.fill_count), end=" ")
+        print("第{}次成交,fill id:{}".format(self.fill_count, self.cur_index), end="")
         if self.cur_order_dire == "buy":
             self.my_quote -= self.cur_order_price * self.cur_order_volume
             self.my_base += self.cur_order_volume
@@ -311,6 +311,7 @@ class TestEnv:
             # print(h.getObs())
             if self.bid1 != 0 and not self.bid_ok:
                 self.init_bid = self.bid1
+                self.initNetWorth = self.my_quote + self.my_base * self.init_bid
                 self.bid_ok = True
             self.step()
         self.save_fig(df, date)
