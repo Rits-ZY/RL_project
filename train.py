@@ -5,6 +5,7 @@ import numpy as np
 from stable_baselines3 import PPO
 from stable_baselines3 import SAC
 from stable_baselines3 import DDPG, DQN, TD3, HER, A2C
+from stable_baselines3.common.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise
 from stable_baselines3.common.base_class import BaseAlgorithm
 from env.StockTradingEnv_2 import StockTradingEnv
 from stable_baselines3.common.vec_env import DummyVecEnv, VecMonitor
@@ -15,12 +16,12 @@ from stable_baselines3.common.results_plotter import load_results, ts2xy, window
 import sys
 
 LOG_PATH = "G:\\RL\\RL_project\\log\\"
-DATA_PATH = "G:\\RL\\RL_project\\data\\shaped\\oneweek\\mydata20210402.csv"
+DATA_PATH = "G:\\RL\\RL_project\\data\\shaped\\oneweek\\mydata20210404.csv"
 MODEL_PATH = "G:\\RL\\RL_project\\model\\"
 FIG_PATH = "G:\\RL\\RL_project\\fig\\"
 MODEL_TYPE = "SAC"
 DEFAULT_MAX_EPISODE = 4
-DEFAULT_MODEL_NAME = "my_model2"
+DEFAULT_MODEL_NAME = "my_model_day4 "
 MODEL_NAME = DEFAULT_MODEL_NAME
 TRAIN_ROUND = 10
 ROUND_START = 1
@@ -42,11 +43,17 @@ def load_model(
     elif model_type.upper() == "SAC":
         return SAC.load(path, env=train_env, verbose=0)
 
+    elif model_type.upper() == "DDPG":
+        return DDPG.load(path, env=train_env, verbose=0)
+
+    elif model_type.upper() == "A2C":
+        return A2C.load(path, env=train_env, verbose=0)
+
 
 def init_env():
     df = pd.read_csv(DATA_PATH)
     df = df.sort_values('ts')
-    df_train = df.iloc[0:3600]
+    df_train = df#df.iloc[240:480]
     print("Init train env done!")
     return DummyVecEnv([lambda: StockTradingEnv(df_train)])
 
@@ -56,7 +63,7 @@ def create_model(model_type: str, train_env: VecMonitor) -> BaseAlgorithm:
         return PPO(
             "MlpPolicy",
             train_env,
-            verbose=1,
+            verbose=0,
             n_steps=512,
             gae_lambda=0.98,
             n_epochs=10,
@@ -67,11 +74,33 @@ def create_model(model_type: str, train_env: VecMonitor) -> BaseAlgorithm:
         return SAC(
             "MlpPolicy",
             train_env,
-            verbose=1,
+            verbose=0,
             batch_size=32,
             gamma=0.99,
             train_freq=1,
-            gradient_steps=1)
+            gradient_steps=1,
+            use_sde=True
+        )
+
+    elif model_type.upper() == "DDPG":
+        n_actions = train_env.action_space.shape[-1]
+        action_noise = NormalActionNoise(
+            mean=np.zeros(n_actions),
+            sigma=0.1 * np.ones(n_actions))
+
+        return DDPG(
+            "MlpPolicy",
+            train_env,
+            action_noise=action_noise,
+            verbose=1)
+
+    elif model_type.upper() == "A2C":
+
+        return A2C(
+            "MlpPolicy",
+            train_env,
+            use_sde=True,
+            verbose=0)
 
 
 def save_fig(monitor_path: str, fig_path: str) -> None:
@@ -99,6 +128,7 @@ def save_fig(monitor_path: str, fig_path: str) -> None:
     plt.clf()
     print("Save fig: ", fig_path)
 
+
 def main(cur_round: int) -> None:
     global MODEL_NAME, MODEL_TYPE, DEFAULT_MAX_EPISODE
     new_model_flag = False
@@ -124,9 +154,7 @@ def main(cur_round: int) -> None:
         log_path = LOG_PATH + "\\{}\\{}".format(MODEL_TYPE, model_name)
         if not os.path.exists(log_path):
             os.mkdir(log_path)
-        log_path_2 = log_path + "\\{}_{}".format(round, Monitor.EXT)
-        if os.path.exists(log_path_2):
-            log_path = log_path_2
+        log_path = log_path + "\\{}_{}".format(cur_round, Monitor.EXT)
         train_env = VecMonitor(train_env, log_path)
         model = create_model(MODEL_TYPE, train_env)
 
@@ -142,15 +170,15 @@ def main(cur_round: int) -> None:
     my_callback = StopTrainingOnMaxEpisodes(DEFAULT_MAX_EPISODE, verbose=0)
     model.learn(total_timesteps=20000000, callback=my_callback)
     save_path = MODEL_PATH + \
-        "\\{}\\{}.zip".format(MODEL_TYPE, model_name)
+        "{}\\{}.zip".format(MODEL_TYPE, model_name)
     model.save(save_path)
     print("Save model: ", save_path)
 
     fig_path = FIG_PATH + \
-        "\\{}\\train\\{}_{}.jpg".format(MODEL_TYPE, cur_round, model_name)
+        "{}\\train\\{}_{}.jpg".format(MODEL_TYPE, cur_round, model_name)
     save_fig(os.path.dirname(log_path), fig_path)
 
 
 if __name__ == '__main__':
-    for i in range(ROUND_START, ROUND_START+TRAIN_ROUND):
+    for i in range(ROUND_START, ROUND_START + TRAIN_ROUND):
         main(i)

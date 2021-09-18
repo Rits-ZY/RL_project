@@ -7,11 +7,11 @@ import sys
 import matplotlib.pyplot as plt
 from stable_baselines3.common.base_class import BaseAlgorithm
 from stable_baselines3 import SAC
-from stable_baselines3 import PPO
+from stable_baselines3 import PPO ,A2C
 
 FIG_PATH = "G:\\RL\\RL_project\\fig\\SAC\\TEST"
 DATA_PATH = "G:\\RL\\RL_project\\data\\shaped\\oneweek"
-MODEL_PATH = "G:\\RL\\RL_project\\model\\SAC\\my_model.zip"
+MODEL_PATH = "G:\\RL\\RL_project\\model\\SAC\\my_model2.zip"
 MODEL_TYPE = "SAC"
 
 
@@ -514,6 +514,8 @@ def load_model(model_type: str, model_path: str) -> BaseAlgorithm:
     elif model_type.upper() == "SAC":
         return SAC.load(model_path)
 
+    elif model_type.upper() == "A2C":
+        return A2C.load(model_path)
 
 def get_test_file_list(filepath=None) -> list:
     if filepath is None or not os.path.exists(filepath):
